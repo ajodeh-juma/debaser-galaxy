@@ -1,0 +1,72 @@
+<tool id="debaser" name="DEBASER" version="0.1.0">
+    <requirements>
+        <requirement type="package">bowtie2</requirement>
+        <requirement type="package" version="1.2">samtools</requirement>
+        <requirement type="package">angsd</requirement>
+        <requirement type="package" version="1.2.1">htslib</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+        mkdir variety_dir &&
+        #set $input_filename = '.'.join(str($infile.element_identifier).split('.')[:-1]) + '.fasta'
+        ln -s '$infile' '${input_filename}' && 
+        #for $item in $variety
+          #if $item.forward.metadata.is_gzipped
+            #set $extension = 'fastq.gz'
+          #else
+            #set $extension = 'fastq'
+          #end if
+          #set $item_type = type($items)
+          ln -s '$item.forward' 'variety_dir/${item.name}_1.$extension' &&
+          ln -s '$item.reverse' 'variety_dir/${item.name}_2.$extension' &&
+        #end for
+        python $__tool_directory__/debaser.py
+        --infile './$input_filename'
+        --reference '$reference'
+        --variety variety_dir
+        --output output
+    ]]></command>
+    <inputs>
+        <param type="data" format="fasta" name="infile" label="input file"></param>
+        <param type="data" format="fasta" name="reference" label="reference genome"></param>
+        <param type="data_collection" collection_type="list:paired" format="fastqsanger,fastqsanger.gz" name="variety"></param>
+    </inputs>
+    <outputs>
+            <collection name="consensus" type="list" label="consensus of varieties from ${on_string}">
+                <discover_datasets pattern="(?P&lt;name&gt;.*)\.fa" ext="fasta" directory="output"/>
+            </collection>
+    </outputs>
+    <tests>
+        <test>
+            <param name="infile" value="All_targets_FASTA.fa"/>
+            <param name="reference" value="Mesculenta_305_v6.1.cds.fa"/>
+            <param name="variety"><collection type="list:paired">
+                <element name="Namikonga"><collection type="paired">
+                    <element name="forward" value="Namikonga_1.fastq"/>
+                    <element name="reverse" value="Namikonga_2.fastq"/>
+                </collection>
+            </element>
+            </collection></param>
+            <output_collection name="consensus">
+                <element name="Namikonga_All_targets_FASTA.consensus" md5="e0388ac747a40ce19515f0a3e7ed52a1" ftype="fasta"/>
+            </output_collection>
+
+
+        </test>
+    </tests>
+
+    <help><![CDATA[
+        Find polymorphisms in plant varieties
+    ]]></help>
+    <citations>
+        <citation type="bibtex">
+            @misc{githubseqtk,
+            author = {Elon, Musk},
+            year = {2010},
+            title = {seqtk},
+            publisher = {GitHub},
+            journal = {GitHub Repository},
+            url = {https://github.com/lh3/seqtk},
+            }
+        </citation>
+    </citations>
+</tool>
