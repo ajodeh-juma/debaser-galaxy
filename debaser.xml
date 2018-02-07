@@ -61,9 +61,9 @@
     <citations>
         <citation type="bibtex">
             @misc{debaser,
-            author = {Juma, John},
-            year = {2010},
-            title = {seqtk},
+            author = {Juma, John; Eyles, Rodney; Shah, Trushar },
+            year = {2017},
+            title = {DeBaser: An integrated tool for fast NGS data assembly, multi-sequence alignment and sequence variation detection in plants},
             publisher = {GitHub},
             journal = {GitHub Repository},
             url = {https://github.com/ajodeh-juma/debaser-galaxy/},
