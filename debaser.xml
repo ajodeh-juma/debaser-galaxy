@@ -5,54 +5,77 @@
         <requirement type="package">angsd</requirement>
         <requirement type="package" version="1.2.1">htslib</requirement>
     </requirements>
+    <!-- A note on conditionals: their names are used in the code block but not test block -->
+    <!-- this means that you can't have the same parameter names in both sides of the conditional -->
+    <!-- because this would mess up the testing. As a result the code block ends up with unavoidable -->
+    <!-- duplications. -->
     <command detect_errors="exit_code"><![CDATA[
         mkdir variety_dir &&
         #set $input_filename = '.'.join(str($infile.element_identifier).split('.')[:-1]) + '.fasta'
-        ln -s '$infile' '${input_filename}' && 
-        #for $item in $variety
-          #if $item.forward.metadata.is_gzipped
+        ln -s '$infile' '${input_filename}' &&
+        #if str($read_mode.paired_read_mode) == "paired":
+          #if $read_mode.variety_paired.forward.metadata.is_gzipped
             #set $extension = 'fastq.gz'
           #else
             #set $extension = 'fastq'
           #end if
-          #set $item_type = type($items)
-          ln -s '$item.forward' 'variety_dir/${item.name}_1.$extension' &&
-          ln -s '$item.reverse' 'variety_dir/${item.name}_2.$extension' &&
-        #end for
+          ln -s '$read_mode.variety_paired.forward' 'variety_dir/${read_mode.variety_paired.name}_1.$extension' &&
+          ln -s '$read_mode.variety_paired.reverse' 'variety_dir/${read_mode.variety_paired.name}_2.$extension' &&
+        #else
+          #if $read_mode.variety_single.metadata.is_gzipped
+            #set $extension = 'fastq.gz'
+          #else
+            #set $extension = 'fastq'
+          #end if
+          #set $read_filename = '.'.join(str($read_mode.variety_single.name).split('.')[:-1])
+          ln -s '$read_mode.variety_single' 'variety_dir/${read_filename}_1.$extension' &&
+          #end if
         python $__tool_directory__/debaser.py
         --infile './$input_filename'
         --reference '$reference'
         --variety variety_dir
-        --output output
+        --output output &&
+        mv output/*.fa $output1
     ]]></command>
     <inputs>
         <param type="data" format="fasta" name="infile" label="input file"></param>
         <param type="data" format="fasta" name="reference" label="reference genome"></param>
-        <param type="data_collection" collection_type="list:paired" format="fastqsanger,fastqsanger.gz" name="variety"></param>
+        <conditional name="read_mode">
+          <param name="paired_read_mode" checked="True" truevalue="paired" falsevalue="single" type="boolean" label="Reads are in read pairs" />
+          <when value="paired">
+            <param type="data_collection" collection_type="paired" format="fastqsanger,fastqsanger.gz" name="variety_paired"></param>
+          </when>
+          <when value="single">
+            <param type="data" format="fastqsanger,fastqsanger.gz" name="variety_single"></param>
+          </when>
+        </conditional>
     </inputs>
     <outputs>
-            <collection name="consensus" type="list" label="consensus of varieties from ${on_string}">
-                <discover_datasets pattern="(?P&lt;name&gt;.*)\.fa" ext="fasta" directory="output"/>
-            </collection>
+        <data name="output1" format="fasta" />
+            <!-- <collection name="consensus" type="list" label="consensus of varieties from ${on_string}"> -->
+                <!-- <discover_datasets pattern="(?P&lt;name&gt;.*)\.fa" ext="fasta" directory="output"/> -->
+            <!-- </collection> -->
     </outputs>
     <tests>
         <test>
-            <param name="infile" value="All_targets_FASTA.fa"/>
+            <param name="infile" value="small.fasta"/>
             <param name="reference" value="Mesculenta_305_v6.1.cds.fa"/>
-            <param name="variety"><collection type="list:paired">
-                <element name="Namikonga"><collection type="paired">
-                    <element name="forward" value="Namikonga_1.fastq"/>
-                    <element name="reverse" value="Namikonga_2.fastq"/>
-                </collection>
-            </element>
-            </collection></param>
-            <output_collection name="consensus">
-                <element name="Namikonga_All_targets_FASTA.consensus" md5="e0388ac747a40ce19515f0a3e7ed52a1" ftype="fasta"/>
-            </output_collection>
-
-
+            <param name="paired_read_mode" value="paired" />
+            <param name="variety_paired">
+              <collection type="paired" name="small">
+                <element name="forward" value="small_reads_1.fastq"/>
+                <element name="reverse" value="small_reads_2.fastq"/>
+              </collection>
+            </param>
+            <output name="output1" value="small_paired_output.fasta" ftype="fasta" />
         </test>
-
+        <test>
+            <param name="infile" value="small.fasta"/>
+            <param name="reference" value="Mesculenta_305_v6.1.cds.fa"/>
+            <param name="paired_read_mode" value="single" />
+            <param name="variety_single" value="small_reads_1.fastq" />
+            <output name="output1" value="small_single_output.fasta" ftype="fasta" />
+        </test>
     </tests>
 
     <help><![CDATA[
